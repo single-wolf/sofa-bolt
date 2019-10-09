@@ -91,7 +91,19 @@ public class ProtocolCodeBasedDecoder extends AbstractBatchDecoder {
             Protocol protocol = ProtocolManager.getProtocol(protocolCode);
             if (null != protocol) {
                 in.resetReaderIndex();
-                protocol.getDecoder().decode(ctx, in, out);
+                try {
+                    protocol.getDecoder().decode(ctx, in, out);
+                } catch (Exception e) {
+                    // skip all readable bytes in order to release this unreadable bytebuf in super.channelRead()
+                    // that avoid this.decode() being invoked again by channel.close()
+                    in.skipBytes(in.readableBytes());
+                    if (e instanceof CodecException) {
+                        throw e;
+                    } else {
+                        throw new CodecException("An exception has occurred in the decoder for the protocol="
+                                + protocol.getClass().getSimpleName(), e);
+                    }
+                }
             } else {
                 throw new CodecException("Unknown protocol code: [" + protocolCode
                                          + "] while decode in ProtocolDecoder.");

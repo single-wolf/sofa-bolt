@@ -186,6 +186,10 @@ public class Configs {
     public static final String SERIALIZER_DEFAULT                    = String
                                                                          .valueOf(SerializerManager.Hessian2);
 
+    /** CommandDecoder:the maximum of the sum of length fields(ex:classLen + headerLen + contentLen) */
+    public static final String MAX_SUM_LEN_FIELD                     = "bolt.max.sum.len.field";
+    public static final String MAX_SUM_LEN_FIELD_DEFAULT             = String.valueOf(8 << 10);
+
     /** Charset */
     public static final String DEFAULT_CHARSET                       = "UTF-8";
 }

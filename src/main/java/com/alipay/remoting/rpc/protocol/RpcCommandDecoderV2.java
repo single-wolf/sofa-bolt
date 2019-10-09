@@ -19,6 +19,8 @@ package com.alipay.remoting.rpc.protocol;
 import java.net.InetSocketAddress;
 import java.util.List;
 
+import com.alipay.remoting.config.ConfigManager;
+import com.alipay.remoting.config.Configs;
 import com.alipay.remoting.log.BoltLoggerFactory;
 import org.slf4j.Logger;
 
@@ -47,10 +49,13 @@ public class RpcCommandDecoderV2 implements CommandDecoder {
     private static final Logger logger = BoltLoggerFactory.getLogger("RpcRemoting");
 
     private int                 lessLen;
+    /** the maximum of the sum of (classLen + headerLen + contentLen) */
+    private int                 maxSumOfLenFields;
 
     {
         lessLen = RpcProtocolV2.getResponseHeaderLength() < RpcProtocolV2.getRequestHeaderLength() ? RpcProtocolV2
             .getResponseHeaderLength() : RpcProtocolV2.getRequestHeaderLength();
+        maxSumOfLenFields = ConfigManager.getInt(Configs.MAX_SUM_LEN_FIELD, Configs.MAX_SUM_LEN_FIELD_DEFAULT);
     }
 
     /**
@@ -99,6 +104,13 @@ public class RpcCommandDecoderV2 implements CommandDecoder {
                             short classLen = in.readShort();
                             short headerLen = in.readShort();
                             int contentLen = in.readInt();
+                            int sumOfLenField = classLen + headerLen + contentLen;
+                            if (sumOfLenField > maxSumOfLenFields) {
+                                String errMsg = "Exceed maximum length limit of the message, current value = "
+                                        + sumOfLenField + " but maximum = " + maxSumOfLenFields;
+                                logger.error(errMsg);
+                                throw new RuntimeException(errMsg);
+                            }
                             byte[] clazz = null;
                             byte[] header = null;
                             byte[] content = null;
@@ -167,6 +179,13 @@ public class RpcCommandDecoderV2 implements CommandDecoder {
                             short classLen = in.readShort();
                             short headerLen = in.readShort();
                             int contentLen = in.readInt();
+                            int sumOfLenField = classLen + headerLen + contentLen;
+                            if (sumOfLenField > maxSumOfLenFields) {
+                                String errMsg = "Exceed maximum length limit of the message, current value = "
+                                        + sumOfLenField + " but maximum = " + maxSumOfLenFields;
+                                logger.error(errMsg);
+                                throw new RuntimeException(errMsg);
+                            }
                             byte[] clazz = null;
                             byte[] header = null;
                             byte[] content = null;
