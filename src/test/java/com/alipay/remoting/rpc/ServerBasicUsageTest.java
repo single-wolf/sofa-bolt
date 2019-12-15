@@ -16,12 +16,18 @@
  */
 package com.alipay.remoting.rpc;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
+import com.alipay.remoting.rpc.protocol.RpcCommandCode;
+import com.alipay.remoting.rpc.protocol.RpcProtocolV2;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -88,6 +94,41 @@ public class ServerBasicUsageTest {
             Thread.sleep(100);
         } catch (InterruptedException e) {
             logger.error("Stop server failed!", e);
+        }
+    }
+
+    @Test
+    public void testOOM() {
+        try {
+            // Sleep for monitor
+            TimeUnit.SECONDS.sleep(10);
+            int reqSize = 32;
+            byte[] badRequest = new byte[reqSize];
+            badRequest[0] = RpcProtocolV2.PROTOCOL_CODE;
+            badRequest[1] = RpcProtocolV2.PROTOCOL_VERSION_1;
+            badRequest[2] = RpcCommandType.REQUEST;
+            badRequest[4] = (byte) RpcCommandCode.RPC_REQUEST.value();
+            badRequest[5] = (byte) RpcCommandCode.RPC_REQUEST.value();
+            badRequest[20] = (byte) (Integer.MAX_VALUE >> 24 & 0xFF);
+            badRequest[21] = (byte) (Integer.MAX_VALUE >> 16 & 0xFF);
+            badRequest[22] = (byte) (Integer.MAX_VALUE >> 8 & 0xFF);
+            badRequest[23] = (byte) (Integer.MAX_VALUE & 0xFF);
+            try (Socket socket = new Socket(ip, port);
+                 OutputStream os = socket.getOutputStream()) {
+                socket.setKeepAlive(true);
+                socket.setTcpNoDelay(true);
+                for (int i = 0, j = reqSize; i < (1 << 30) / reqSize; i++, j += reqSize) {
+                    os.write(badRequest);
+                    if ((j & (1 << 11) - 1) == 0) {
+                        os.flush();
+                    }
+                    if ((j & (1 << 24) - 1) == 0) {
+                        logger.info("[OOM TEST] Already Send {} MB", j >> 20);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Assert.assertTrue(e instanceof IOException);
         }
     }
 
